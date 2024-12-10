@@ -1,0 +1,63 @@
+
+unset_aws_role(){
+    unset AWS_SESSION_TOKEN AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
+}
+
+#update_lambda(){
+#    rm lambda_function.zip
+#    zip -r lambda_function.zip .
+#    aws lambda update-function-code --function-name "$1" --zip-file fileb://lambda_function.zip
+#}
+
+#!/bin/bash
+
+update_lambda() {
+  local filenames=()
+
+  # Parse options
+  while getopts ":x:" opt; do
+    case $opt in
+      x)
+        filenames+=("$OPTARG")
+        ;;
+      \?)
+        echo "Invalid option: -$OPTARG" >&2
+        return 1
+        ;;
+    esac
+  done
+
+  # Remove the options from the positional parameters
+  shift $((OPTIND-1))
+
+  # Check if at least the function name is provided
+  if [ -z "$1" ]; then
+    echo "Usage: update_lambda [-x <filename>] <function_name>"
+    return 1
+  fi
+
+  local function_name="$1"
+
+  # Delete the existing zip file
+  rm -f lambda_function.zip
+
+  # If specific filenames are provided with -x, only zip those files
+  if [ "${#filenames[@]}" -gt 0 ]; then
+    zip -r lambda_function.zip . -x "${filenames[@]}"
+  else
+    # If no -x option is provided, zip the current directory
+    zip -r lambda_function.zip .
+  fi
+
+  # Update Lambda function code
+  aws lambda update-function-code --function-name "$function_name" --zip-file fileb://lambda_function.zip
+}
+
+# To call the function:
+# update_lambda -x filename1 -x filename2 my_lambda_function
+
+function awsp() {
+    export AWS_PROFILE=$(grep profile ${HOME}/.aws/config \
+        | awk '{print $2}' | sed 's,],,g' \
+        | fzf --layout reverse --height=10% --border)
+}
